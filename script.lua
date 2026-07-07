@@ -298,60 +298,144 @@ function Library:CreateTab(name)
 
     return TabElements
 end
+
 -- ==========================================
--- ЧАСТЬ 3: СОЗДАНИЕ МЕНЮ И ЭЛЕМЕНТОВ
+-- ЧАСТЬ 3: СОЗДАНИЕ МЕНЮ И ЭЛЕМЕНТОВ (ОБНОВЛЕННАЯ)
 -- ==========================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 -- Создаем вкладки
 local CombatTab = Library:CreateTab("🗡 Combat")
 local AimTab = Library:CreateTab("🎯 Aim")
 local TeleportTab = Library:CreateTab("🏃 Teleport")
 
--- Заполняем Вкладку Combat
+---------------------------------------------
+-- ЗАПОЛНЯЕМ ВКЛАДКУ COMBAT И AIM (Базовые)
+---------------------------------------------
 CombatTab:CreateToggle("Auto-Hit (Авто-удар)", function(state)
-    if state then
-        print("Авто-удар включен! Зеленый цвет работает.")
-    else
-        print("Авто-удар выключен! Красный цвет.")
-    end
+    print("Авто-удар: " .. tostring(state))
 end)
-
-CombatTab:CreateButton("Убить всех (Тест)", function()
-    print("Кнопка Убить всех нажата!")
-end)
-
-CombatTab:CreateSlider("Скорость атаки", 1, 100, function(value)
-    print("Скорость установлена на: " .. value)
-end)
-
--- Заполняем Вкладку Aim
 AimTab:CreateToggle("Aimbot Нож", function(state)
     print("Аимбот статус: " .. tostring(state))
 end)
 
-AimTab:CreateToggle("Показать Хитбоксы", function(state)
-    print("Хитбоксы: " .. tostring(state))
-end)
+---------------------------------------------
+-- ЛОГИКА ДЛЯ ВКЛАДКИ TELEPORT (Gun Drop)
+---------------------------------------------
+-- 1. Переменная-переключатель
+local autoGunEnabled = false
 
-AimTab:CreateSlider("Размер хитбокса", 1, 25, function(value)
-    print("Новый размер хитбокса: " .. value)
-end)
+-- 2. Сама функция "Микро-блинка"
+local function stealthGrabGun()
+    -- Ищем пистолет на карте
+    local gunDrop = workspace:FindFirstChild("GunDrop", true) 
+    
+    if gunDrop and (gunDrop:IsA("BasePart") or gunDrop:FindFirstChild("Handle")) then
+        local character = LocalPlayer.Character
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        
+        if rootPart then
+            -- Сохраняем позицию, прыгаем на пистолет, ждем 0.05 сек и прыгаем обратно
+            local originalCFrame = rootPart.CFrame
+            local targetPart = gunDrop:FindFirstChild("Handle") or gunDrop
+            
+            rootPart.CFrame = targetPart.CFrame
+            task.wait(0.05) 
+            rootPart.CFrame = originalCFrame
+            
+            print("🔫 Пистолет успешно подобран по стелсу!")
+        end
+    end
+end
 
--- Заполняем Вкладку Teleport
-TeleportTab:CreateButton("ТП к Лобби", function()
-    local lp = game.Players.LocalPlayer
-    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-        -- Пример базового ТП (координаты лобби нужно менять под конкретную карту MM2)
-        print("Телепортация в Лобби...")
+-- 3. Фоновый цикл (работает всегда, но срабатывает только если тумблер Вкл)
+task.spawn(function()
+    while task.wait(0.2) do -- Проверяем каждые 0.2 секунды
+        if autoGunEnabled then
+            stealthGrabGun()
+        end
     end
 end)
 
-TeleportTab:CreateButton("ТП к Шерифу", function()
-    print("Ищу шерифа и телепортируюсь...")
+-- 4. ПОДКЛЮЧАЕМ К ТУМБЛЕРУ GUI
+TeleportTab:CreateToggle("Стелс ТП к Пистолету", function(state)
+    autoGunEnabled = state -- Связываем кнопку в GUI с нашей переменной!
+    if state then
+        print("✅ Авто-подбор включен! Ждем смерти Шерифа.")
+    else
+        print("❌ Авто-подбор выключен.")
+    end
 end)
 
-TeleportTab:CreateToggle("Авто-ТП Gun Drop", function(state)
-    print("ТП к пистолету: " .. tostring(state))
+TeleportTab:CreateButton("ТП к Лобби", function()
+    print("Тут будет обычный телепорт в лобби")
 end)
 
-print("🚀 Скрипт GUI успешно загружен! Нажми на 🔮 на экране.")
+-- ==========================================
+-- БЛОК: ESP (ВХ НА ИГРОКОВ И РОЛИ)
+-- Скопируй этот блок и вставь в самый конец скрипта
+-- ==========================================
+
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local espEnabled = false
+
+-- Функция обновления подсветки игроков
+local function updateESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local char = player.Character
+            
+            -- Проверяем наличие подсветки, если нет — создаем
+            local highlight = char:FindFirstChild("ESPHighlight")
+            if not highlight then
+                highlight = Instance.new("Highlight")
+                highlight.Name = "ESPHighlight"
+                highlight.FillTransparency = 0.5
+                highlight.OutlineTransparency = 0
+                highlight.Parent = char
+            end
+            
+            -- По умолчанию зеленый (Невиновный)
+            local roleColor = Color3.fromRGB(0, 255, 0)
+            
+            -- Проверяем инвентарь и персонажа на наличие оружия
+            local hasKnife = char:FindFirstChild("Knife") or (player.Backpack and player.Backpack:FindFirstChild("Knife"))
+            local hasGun = char:FindFirstChild("Gun") or char:FindFirstChild("Revolver") or (player.Backpack and (player.Backpack:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Revolver")))
+            
+            if hasKnife then
+                roleColor = Color3.fromRGB(255, 0, 0) -- Красный (Мардер)
+            elseif hasGun then
+                roleColor = Color3.fromRGB(0, 0, 255) -- Синий (Шериф)
+            end
+            
+            highlight.FillColor = roleColor
+            highlight.OutlineColor = roleColor
+            highlight.Enabled = espEnabled
+        end
+    end
+end
+
+-- Постоянный цикл обновления в зависимости от тумблера
+RunService.RenderStepped:Connect(function()
+    if espEnabled then
+        updateESP()
+    else
+        -- Если выключено, отключаем подсветку у всех
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Character and player.Character:FindFirstChild("ESPHighlight") then
+                player.Character.ESPHighlight.Enabled = false
+            end
+        end
+    end
+end)
+
+-- Подключаем к нашему GUI (к вкладке Aim, которую мы создали в Части 3)
+AimTab:CreateToggle("ESP (ВХ на роли)", function(state)
+    espEnabled = state
+end)
+
+print("🚀 Обновленный Hub загружен!")
