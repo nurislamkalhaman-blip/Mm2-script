@@ -438,4 +438,154 @@ AimTab:CreateToggle("ESP (ВХ на роли)", function(state)
     espEnabled = state
 end)
 
+-- ==========================================
+-- БЛОК: SILENT AIM ДЛЯ ПИСТОЛЕТА (ШЕРИФ)
+-- Вставь в самый конец файла
+-- ==========================================
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local gunSilentAim = false
+
+-- Поиск ближайшей цели к твоему курсору
+local function getClosestForGun()
+    local closestTarget = nil
+    local shortestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    local Camera = workspace.CurrentCamera
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local rootPart = player.Character.HumanoidRootPart
+                local screenPoint, onScreen = Camera:WorldToScreenPoint(rootPart.Position)
+                
+                if onScreen then
+                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        closestTarget = rootPart
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- Перехват клика/тапа при стрельбе
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if not gunSilentAim then return end
+
+    -- Если нажат левый клик или тап по экрану телефона
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local character = LocalPlayer.Character
+        local gun = character and character:FindFirstChild("Gun") -- Оружие Шерифа
+        
+        if gun then
+            -- Путь из твоего дампа: Gun -> Shoot
+            local shootRemote = gun:FindFirstChild("Shoot")
+            if shootRemote then
+                local target = getClosestForGun()
+                if target then
+                    local origin = character.Head.Position
+                    local targetPos = target.Position
+                    
+                    -- Собираем аргументы из твоего дампа:
+                    -- arg1: Направление выстрела, arg2: Конечная точка
+                    local arg1 = CFrame.new(origin, targetPos)
+                    local arg2 = CFrame.new(targetPos)
+                    
+                    -- Отправляем измененные аргументы на сервер
+                    shootRemote:FireServer(arg1, arg2)
+                    print("🎯 Беспалевный выстрел в: " .. target.Parent.Name)
+                end
+            end
+        end
+    end
+end)
+
+-- Подключаем к нашей вкладке Combat
+CombatTab:CreateToggle("Silent Aim (Шериф)", function(state)
+    gunSilentAim = state
+end)
+
+-- ==========================================
+-- БЛОК: SILENT AIM ДЛЯ БРОСКА НОЖА (МАРДЕР)
+-- Вставь в самый конец файла
+-- ==========================================
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local knifeSilentAim = false
+
+-- Поиск ближайшей цели к курсору
+local function getClosestForKnife()
+    local closestTarget = nil
+    local shortestDistance = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+    local Camera = workspace.CurrentCamera
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                local rootPart = player.Character.HumanoidRootPart
+                local screenPoint, onScreen = Camera:WorldToScreenPoint(rootPart.Position)
+                
+                if onScreen then
+                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        closestTarget = rootPart
+                    end
+                end
+            end
+        end
+    end
+    return closestTarget
+end
+
+-- Перехват атаки ножом
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if not knifeSilentAim then return end
+
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local character = LocalPlayer.Character
+        local knife = character and character:FindFirstChild("Knife")
+        
+        if knife then
+            -- Путь из твоего дампа: Knife -> Events -> KnifeThrown
+            local events = knife:FindFirstChild("Events")
+            local throwRemote = events and events:FindFirstChild("KnifeThrown")
+            
+            if throwRemote then
+                local target = getClosestForKnife()
+                if target then
+                    local origin = character.HumanoidRootPart.Position
+                    local targetPos = target.Position
+                    
+                    -- Аргументы из твоего дампа для идеального броска
+                    local arg1 = CFrame.new(origin, targetPos)
+                    local arg2 = CFrame.new(targetPos)
+                    
+                    -- Кидаем нож на серверном уровне ровно в цель
+                    throwRemote:FireServer(arg1, arg2)
+                    print("🔪 Скрытый бросок ножа в: " .. target.Parent.Name)
+                end
+            end
+        end
+    end
+end)
+
+-- Подключаем к нашей вкладке Aim
+AimTab:CreateToggle("Silent Aim (Мардер)", function(state)
+    knifeSilentAim = state
+end)
+
 print("🚀 Обновленный Hub загружен!")
