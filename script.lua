@@ -1,591 +1,191 @@
--- ==========================================
--- ЧАСТЬ 1: ОСНОВА GUI И АНИМАЦИИ ОТКРЫТИЯ
--- ==========================================
-local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 
--- Настраиваем защиту для Экзекуторов (если gethui() нет, кидаем в PlayerGui)
-local targetGui = (gethui and gethui()) or CoreGui:FindFirstChild("RobloxGui") or Players.LocalPlayer:WaitForChild("PlayerGui")
+-- Удаляем старый UI, если скрипт перезапускается
+local uiName = "NeonGenesisUI"
+if CoreGui:FindFirstChild(uiName) then
+    CoreGui[uiName]:Destroy()
+end
+
+-- Основные настройки стиля
+local Theme = {
+    Background = Color3.fromRGB(20, 20, 25),
+    Topbar = Color3.fromRGB(30, 30, 35),
+    Accent = Color3.fromRGB(124, 58, 237), -- Неоновый фиолетовый
+    Text = Color3.fromRGB(255, 255, 255),
+    Element = Color3.fromRGB(35, 35, 40),
+    ElementHover = Color3.fromRGB(45, 45, 50)
+}
 
 -- Создаем ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MM2_Delta_Hub"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = targetGui
-
--- Цветовая палитра (Темная тема)
-local Colors = {
-    MainBg = Color3.fromRGB(25, 25, 30),
-    SidebarBg = Color3.fromRGB(18, 18, 22),
-    ElementBg = Color3.fromRGB(35, 35, 42),
-    Accent = Color3.fromRGB(80, 200, 120), -- Зеленый
-    Red = Color3.fromRGB(220, 60, 60),
-    Text = Color3.fromRGB(240, 240, 240)
-}
-
--- Плавающая кнопка для открытия/закрытия (удобно для телефона)
-local ToggleGuiBtn = Instance.new("TextButton")
-ToggleGuiBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleGuiBtn.Position = UDim2.new(0, 20, 0, 20)
-ToggleGuiBtn.BackgroundColor3 = Colors.Accent
-ToggleGuiBtn.Text = "🔮"
-ToggleGuiBtn.TextSize = 25
-ToggleGuiBtn.Font = Enum.Font.GothamBold
-ToggleGuiBtn.Parent = ScreenGui
-
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(1, 0) -- Круглая кнопка
-ToggleCorner.Parent = ToggleGuiBtn
-
--- Главное окно
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 500, 0, 300)
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
-MainFrame.BackgroundColor3 = Colors.MainBg
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = ScreenGui
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
-
--- Боковая панель для вкладок
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 120, 1, 0)
-Sidebar.BackgroundColor3 = Colors.SidebarBg
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-
-local SidebarLayout = Instance.new("UIListLayout")
-SidebarLayout.Padding = UDim.new(0, 5)
-SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SidebarLayout.Parent = Sidebar
-
-local SidebarPadding = Instance.new("UIPadding")
-SidebarPadding.PaddingTop = UDim.new(0, 10)
-SidebarPadding.PaddingBottom = UDim.new(0, 10)
-SidebarPadding.PaddingLeft = UDim.new(0, 5)
-SidebarPadding.PaddingRight = UDim.new(0, 5)
-SidebarPadding.Parent = Sidebar
-
--- Контейнер для содержимого вкладок
-local ContentContainer = Instance.new("Frame")
-ContentContainer.Size = UDim2.new(1, -120, 1, 0)
-ContentContainer.Position = UDim2.new(0, 120, 0, 0)
-ContentContainer.BackgroundTransparency = 1
-ContentContainer.Parent = MainFrame
-
--- Логика скрытия/показа GUI с анимацией
-local isGuiOpen = true
-ToggleGuiBtn.MouseButton1Click:Connect(function()
-    isGuiOpen = not isGuiOpen
-    local targetSize = isGuiOpen and UDim2.new(0, 500, 0, 300) or UDim2.new(0, 0, 0, 0)
-    local tweenInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(MainFrame, tweenInfo, {Size = targetSize})
-    tween:Play()
-end)
-
--- Драг (возможность перетаскивать окно, актуально даже на мобилках)
-local dragToggle, dragStart, startPos
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragToggle = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragToggle = false
-    end
-end)
--- ==========================================
--- ЧАСТЬ 2: ГЕНЕРАТОР ЭЛЕМЕНТОВ
--- ==========================================
+ScreenGui.Name = uiName
+-- Безопасность для инжекторов (используем gethui если доступно, иначе CoreGui)
+local success, hui = pcall(function() return gethui() end)
+ScreenGui.Parent = success and hui or CoreGui
 
 local Library = {}
-local TabsList = {}
 
--- 1. Функция создания Вкладки (Tab)
-function Library:CreateTab(name)
-    local TabButton = Instance.new("TextButton")
-    TabButton.Size = UDim2.new(1, 0, 0, 35)
-    TabButton.BackgroundColor3 = Colors.ElementBg
-    TabButton.Text = name
-    TabButton.TextColor3 = Colors.Text
-    TabButton.Font = Enum.Font.GothamSemibold
-    TabButton.TextSize = 14
-    TabButton.Parent = Sidebar
+function Library:CreateWindow(titleText)
+    local Window = {}
     
-    local TabCorner = Instance.new("UICorner")
-    TabCorner.CornerRadius = UDim.new(0, 6)
-    TabCorner.Parent = TabButton
+    -- Плавающая кнопка
+    local FloatingBtn = Instance.new("TextButton")
+    FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
+    FloatingBtn.Position = UDim2.new(0.95, -60, 0.5, -25)
+    FloatingBtn.BackgroundColor3 = Theme.Accent
+    FloatingBtn.Text = "UI"
+    FloatingBtn.TextColor3 = Theme.Text
+    FloatingBtn.Font = Enum.Font.GothamBold
+    FloatingBtn.TextSize = 20
+    FloatingBtn.Parent = ScreenGui
+    
+    local FloatCorner = Instance.new("UICorner")
+    FloatCorner.CornerRadius = UDim.new(1, 0)
+    FloatCorner.Parent = FloatingBtn
 
-    -- Скрытый фрейм для элементов этой вкладки
-    local TabFrame = Instance.new("ScrollingFrame")
-    TabFrame.Size = UDim2.new(1, 0, 1, 0)
-    TabFrame.BackgroundTransparency = 1
-    TabFrame.ScrollBarThickness = 2
-    TabFrame.Visible = false
-    TabFrame.Parent = ContentContainer
+    -- Главный фрейм
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Size = UDim2.new(0, 500, 0, 350)
+    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+    MainFrame.BackgroundColor3 = Theme.Background
+    MainFrame.ClipsDescendants = true
+    MainFrame.Visible = false
+    MainFrame.Parent = ScreenGui
+    
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 8)
+    MainCorner.Parent = MainFrame
+    
+    local Topbar = Instance.new("Frame")
+    Topbar.Size = UDim2.new(1, 0, 0, 40)
+    Topbar.BackgroundColor3 = Theme.Topbar
+    Topbar.Parent = MainFrame
+    
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, -20, 1, 0)
+    Title.Position = UDim2.new(0, 20, 0, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = titleText
+    Title.TextColor3 = Theme.Text
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 16
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Topbar
 
-    -- АВТО-РАЗМЕТКА (Именно она не дает элементам слипаться!)
-    local FrameLayout = Instance.new("UIListLayout")
-    FrameLayout.Padding = UDim.new(0, 10)
-    FrameLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    FrameLayout.Parent = TabFrame
+    local ContentContainer = Instance.new("ScrollingFrame")
+    ContentContainer.Size = UDim2.new(1, -20, 1, -50)
+    ContentContainer.Position = UDim2.new(0, 10, 0, 45)
+    ContentContainer.BackgroundTransparency = 1
+    ContentContainer.ScrollBarThickness = 2
+    ContentContainer.Parent = MainFrame
+    
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.Padding = UDim.new(0, 8)
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Parent = ContentContainer
 
-    local FramePadding = Instance.new("UIPadding")
-    FramePadding.PaddingTop = UDim.new(0, 10)
-    FramePadding.PaddingLeft = UDim.new(0, 10)
-    FramePadding.PaddingRight = UDim.new(0, 10)
-    FramePadding.Parent = TabFrame
-
-    table.insert(TabsList, {Btn = TabButton, Frame = TabFrame})
-
-    -- Логика переключения вкладок
-    TabButton.MouseButton1Click:Connect(function()
-        for _, tabInfo in ipairs(TabsList) do
-            tabInfo.Frame.Visible = false
-            tabInfo.Btn.BackgroundColor3 = Colors.ElementBg
+    -- Анимация открытия/закрытия
+    local isOpen = false
+    FloatingBtn.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        if isOpen then
+            MainFrame.Visible = true
+            MainFrame.Size = UDim2.new(0, 0, 0, 0)
+            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 500, 0, 350),
+                Position = UDim2.new(0.5, -250, 0.5, -175)
+            }):Play()
+        else
+            local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0),
+                Position = UDim2.new(0.5, 0, 0.5, 0)
+            })
+            tween:Play()
+            tween.Completed:Wait()
+            MainFrame.Visible = false
         end
-        TabFrame.Visible = true
-        TabButton.BackgroundColor3 = Colors.Accent
     end)
-
-    -- Делаем первую вкладку активной по умолчанию
-    if #TabsList == 1 then
-        TabFrame.Visible = true
-        TabButton.BackgroundColor3 = Colors.Accent
-    end
-
-    local TabElements = {}
-
-    -- 2. Функция создания базовой кнопки
-    function TabElements:CreateButton(btnText, callback)
+    
+    -- API для создания элементов
+    function Window:AddButton(text, callback)
         local Button = Instance.new("TextButton")
-        Button.Size = UDim2.new(1, 0, 0, 40)
-        Button.BackgroundColor3 = Colors.ElementBg
-        Button.Text = btnText
-        Button.TextColor3 = Colors.Text
+        Button.Size = UDim2.new(1, 0, 0, 35)
+        Button.BackgroundColor3 = Theme.Element
+        Button.Text = text
+        Button.TextColor3 = Theme.Text
         Button.Font = Enum.Font.GothamSemibold
         Button.TextSize = 14
-        Button.Parent = TabFrame
+        Button.AutoButtonColor = false
+        Button.Parent = ContentContainer
         
         Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 6)
-
+        
+        Button.MouseEnter:Connect(function()
+            TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ElementHover}):Play()
+        end)
+        Button.MouseLeave:Connect(function()
+            TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Element}):Play()
+        end)
+        
         Button.MouseButton1Click:Connect(function()
             -- Анимация клика
-            TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Colors.Accent}):Play()
-            task.wait(0.1)
-            TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Colors.ElementBg}):Play()
-            callback()
-        end)
-    end
-
-    -- 3. Функция создания Тумблера (Toggle: Вкл/Выкл) с красно-зеленой анимацией
-    function TabElements:CreateToggle(toggleText, callback)
-        local toggled = false
-
-        local ToggleBtn = Instance.new("TextButton")
-        ToggleBtn.Size = UDim2.new(1, 0, 0, 40)
-        ToggleBtn.BackgroundColor3 = Colors.ElementBg
-        ToggleBtn.Text = "   " .. toggleText
-        ToggleBtn.TextColor3 = Colors.Text
-        ToggleBtn.TextXAlignment = Enum.TextXAlignment.Left
-        ToggleBtn.Font = Enum.Font.GothamSemibold
-        ToggleBtn.TextSize = 14
-        ToggleBtn.Parent = TabFrame
-        Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 6)
-
-        local IndicatorBg = Instance.new("Frame")
-        IndicatorBg.Size = UDim2.new(0, 40, 0, 20)
-        IndicatorBg.Position = UDim2.new(1, -50, 0.5, -10)
-        IndicatorBg.BackgroundColor3 = Colors.Red -- По умолчанию красный
-        IndicatorBg.Parent = ToggleBtn
-        Instance.new("UICorner", IndicatorBg).CornerRadius = UDim.new(1, 0)
-
-        local Circle = Instance.new("Frame")
-        Circle.Size = UDim2.new(0, 16, 0, 16)
-        Circle.Position = UDim2.new(0, 2, 0.5, -8)
-        Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        Circle.Parent = IndicatorBg
-        Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
-
-        ToggleBtn.MouseButton1Click:Connect(function()
-            toggled = not toggled
-            local goalPos = toggled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-            local goalColor = toggled and Colors.Accent or Colors.Red
-
-            TweenService:Create(Circle, TweenInfo.new(0.2), {Position = goalPos}):Play()
-            TweenService:Create(IndicatorBg, TweenInfo.new(0.2), {BackgroundColor3 = goalColor}):Play()
+            local clickTween = TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Theme.Accent})
+            clickTween:Play()
+            clickTween.Completed:Wait()
+            TweenService:Create(Button, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ElementHover}):Play()
             
-            callback(toggled)
+            if callback then callback() end
         end)
     end
 
-    -- 4. Функция создания Слайдера (Ползунка) - Идеально для Delta / Touch
-    function TabElements:CreateSlider(sliderText, min, max, callback)
-        local SliderFrame = Instance.new("Frame")
-        SliderFrame.Size = UDim2.new(1, 0, 0, 50)
-        SliderFrame.BackgroundColor3 = Colors.ElementBg
-        SliderFrame.Parent = TabFrame
-        Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 6)
-
+    function Window:AddToggle(text, default, callback)
+        local ToggleFrame = Instance.new("TextButton")
+        ToggleFrame.Size = UDim2.new(1, 0, 0, 35)
+        ToggleFrame.BackgroundColor3 = Theme.Element
+        ToggleFrame.Text = ""
+        ToggleFrame.AutoButtonColor = false
+        ToggleFrame.Parent = ContentContainer
+        Instance.new("UICorner", ToggleFrame).CornerRadius = UDim.new(0, 6)
+        
         local Label = Instance.new("TextLabel")
-        Label.Size = UDim2.new(1, -20, 0, 20)
-        Label.Position = UDim2.new(0, 10, 0, 5)
+        Label.Size = UDim2.new(1, -60, 1, 0)
+        Label.Position = UDim2.new(0, 10, 0, 0)
         Label.BackgroundTransparency = 1
-        Label.Text = sliderText .. ": " .. tostring(min)
-        Label.TextColor3 = Colors.Text
-        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Text = text
+        Label.TextColor3 = Theme.Text
         Label.Font = Enum.Font.GothamSemibold
         Label.TextSize = 14
-        Label.Parent = SliderFrame
-
-        local BarBg = Instance.new("Frame")
-        BarBg.Size = UDim2.new(1, -20, 0, 8)
-        BarBg.Position = UDim2.new(0, 10, 0, 30)
-        BarBg.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-        BarBg.Parent = SliderFrame
-        Instance.new("UICorner", BarBg).CornerRadius = UDim.new(1, 0)
-
-        local Fill = Instance.new("Frame")
-        Fill.Size = UDim2.new(0, 0, 1, 0)
-        Fill.BackgroundColor3 = Colors.Accent
-        Fill.Parent = BarBg
-        Instance.new("UICorner", Fill).CornerRadius = UDim.new(1, 0)
-
-        local dragging = false
-        local function updateSlider(input)
-            local pos = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)
-            local value = math.floor(min + (max - min) * pos)
-            Fill.Size = UDim2.new(pos, 0, 1, 0)
-            Label.Text = sliderText .. ": " .. tostring(value)
-            callback(value)
-        end
-
-        SliderFrame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                updateSlider(input)
-            end
-        end)
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                updateSlider(input)
-            end
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Parent = ToggleFrame
+        
+        local Indicator = Instance.new("Frame")
+        Indicator.Size = UDim2.new(0, 40, 0, 20)
+        Indicator.Position = UDim2.new(1, -50, 0.5, -10)
+        Indicator.BackgroundColor3 = default and Theme.Accent or Color3.fromRGB(60, 60, 65)
+        Indicator.Parent = ToggleFrame
+        Instance.new("UICorner", Indicator).CornerRadius = UDim.new(1, 0)
+        
+        local Circle = Instance.new("Frame")
+        Circle.Size = UDim2.new(0, 16, 0, 16)
+        Circle.Position = UDim2.new(0, default and 22 or 2, 0.5, -8)
+        Circle.BackgroundColor3 = Color3.new(1, 1, 1)
+        Circle.Parent = Indicator
+        Instance.new("UICorner", Circle).CornerRadius = UDim.new(1, 0)
+        
+        local state = default
+        ToggleFrame.MouseButton1Click:Connect(function()
+            state = not state
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {BackgroundColor3 = state and Theme.Accent or Color3.fromRGB(60, 60, 65)}):Play()
+            TweenService:Create(Circle, TweenInfo.new(0.2), {Position = UDim2.new(0, state and 22 or 2, 0.5, -8)}):Play()
+            if callback then callback(state) end
         end)
     end
-
-    -- Авто-коррекция скролла (чтобы можно было листать список вниз)
-    TabFrame.ChildAdded:Connect(function()
-        TabFrame.CanvasSize = UDim2.new(0, 0, 0, FrameLayout.AbsoluteContentSize.Y + 20)
-    end)
-
-    return TabElements
-end
-
--- ==========================================
--- ЧАСТЬ 3: СОЗДАНИЕ МЕНЮ И ЭЛЕМЕНТОВ (ОБНОВЛЕННАЯ)
--- ==========================================
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Создаем вкладки
-local CombatTab = Library:CreateTab("🗡 Combat")
-local AimTab = Library:CreateTab("🎯 Aim")
-local TeleportTab = Library:CreateTab("🏃 Teleport")
-
----------------------------------------------
--- ЗАПОЛНЯЕМ ВКЛАДКУ COMBAT И AIM (Базовые)
----------------------------------------------
-CombatTab:CreateToggle("Auto-Hit (Авто-удар)", function(state)
-    print("Авто-удар: " .. tostring(state))
-end)
-AimTab:CreateToggle("Aimbot Нож", function(state)
-    print("Аимбот статус: " .. tostring(state))
-end)
-
----------------------------------------------
--- ЛОГИКА ДЛЯ ВКЛАДКИ TELEPORT (Gun Drop)
----------------------------------------------
--- 1. Переменная-переключатель
-local autoGunEnabled = false
-
--- 2. Сама функция "Микро-блинка"
-local function stealthGrabGun()
-    -- Ищем пистолет на карте
-    local gunDrop = workspace:FindFirstChild("GunDrop", true) 
     
-    if gunDrop and (gunDrop:IsA("BasePart") or gunDrop:FindFirstChild("Handle")) then
-        local character = LocalPlayer.Character
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-        
-        if rootPart then
-            -- Сохраняем позицию, прыгаем на пистолет, ждем 0.05 сек и прыгаем обратно
-            local originalCFrame = rootPart.CFrame
-            local targetPart = gunDrop:FindFirstChild("Handle") or gunDrop
-            
-            rootPart.CFrame = targetPart.CFrame
-            task.wait(0.05) 
-            rootPart.CFrame = originalCFrame
-            
-            print("🔫 Пистолет успешно подобран по стелсу!")
-        end
-    end
+    return Window
 end
 
--- 3. Фоновый цикл (работает всегда, но срабатывает только если тумблер Вкл)
-task.spawn(function()
-    while task.wait(0.2) do -- Проверяем каждые 0.2 секунды
-        if autoGunEnabled then
-            stealthGrabGun()
-        end
-    end
-end)
-
--- 4. ПОДКЛЮЧАЕМ К ТУМБЛЕРУ GUI
-TeleportTab:CreateToggle("Стелс ТП к Пистолету", function(state)
-    autoGunEnabled = state -- Связываем кнопку в GUI с нашей переменной!
-    if state then
-        print("✅ Авто-подбор включен! Ждем смерти Шерифа.")
-    else
-        print("❌ Авто-подбор выключен.")
-    end
-end)
-
-TeleportTab:CreateButton("ТП к Лобби", function()
-    print("Тут будет обычный телепорт в лобби")
-end)
-
--- ==========================================
--- БЛОК: ESP (ВХ НА ИГРОКОВ И РОЛИ)
--- Скопируй этот блок и вставь в самый конец скрипта
--- ==========================================
-
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local espEnabled = false
-
--- Функция обновления подсветки игроков
-local function updateESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local char = player.Character
-            
-            -- Проверяем наличие подсветки, если нет — создаем
-            local highlight = char:FindFirstChild("ESPHighlight")
-            if not highlight then
-                highlight = Instance.new("Highlight")
-                highlight.Name = "ESPHighlight"
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0
-                highlight.Parent = char
-            end
-            
-            -- По умолчанию зеленый (Невиновный)
-            local roleColor = Color3.fromRGB(0, 255, 0)
-            
-            -- Проверяем инвентарь и персонажа на наличие оружия
-            local hasKnife = char:FindFirstChild("Knife") or (player.Backpack and player.Backpack:FindFirstChild("Knife"))
-            local hasGun = char:FindFirstChild("Gun") or char:FindFirstChild("Revolver") or (player.Backpack and (player.Backpack:FindFirstChild("Gun") or player.Backpack:FindFirstChild("Revolver")))
-            
-            if hasKnife then
-                roleColor = Color3.fromRGB(255, 0, 0) -- Красный (Мардер)
-            elseif hasGun then
-                roleColor = Color3.fromRGB(0, 0, 255) -- Синий (Шериф)
-            end
-            
-            highlight.FillColor = roleColor
-            highlight.OutlineColor = roleColor
-            highlight.Enabled = espEnabled
-        end
-    end
-end
-
--- Постоянный цикл обновления в зависимости от тумблера
-RunService.RenderStepped:Connect(function()
-    if espEnabled then
-        updateESP()
-    else
-        -- Если выключено, отключаем подсветку у всех
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player.Character and player.Character:FindFirstChild("ESPHighlight") then
-                player.Character.ESPHighlight.Enabled = false
-            end
-        end
-    end
-end)
-
--- Подключаем к нашему GUI (к вкладке Aim, которую мы создали в Части 3)
-AimTab:CreateToggle("ESP (ВХ на роли)", function(state)
-    espEnabled = state
-end)
-
--- ==========================================
--- БЛОК: SILENT AIM ДЛЯ ПИСТОЛЕТА (ШЕРИФ)
--- Вставь в самый конец файла
--- ==========================================
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-
-local gunSilentAim = false
-
--- Поиск ближайшей цели к твоему курсору
-local function getClosestForGun()
-    local closestTarget = nil
-    local shortestDistance = math.huge
-    local mousePos = UserInputService:GetMouseLocation()
-    local Camera = workspace.CurrentCamera
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local rootPart = player.Character.HumanoidRootPart
-                local screenPoint, onScreen = Camera:WorldToScreenPoint(rootPart.Position)
-                
-                if onScreen then
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        closestTarget = rootPart
-                    end
-                end
-            end
-        end
-    end
-    return closestTarget
-end
-
--- Перехват клика/тапа при стрельбе
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if not gunSilentAim then return end
-
-    -- Если нажат левый клик или тап по экрану телефона
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local character = LocalPlayer.Character
-        local gun = character and character:FindFirstChild("Gun") -- Оружие Шерифа
-        
-        if gun then
-            -- Путь из твоего дампа: Gun -> Shoot
-            local shootRemote = gun:FindFirstChild("Shoot")
-            if shootRemote then
-                local target = getClosestForGun()
-                if target then
-                    local origin = character.Head.Position
-                    local targetPos = target.Position
-                    
-                    -- Собираем аргументы из твоего дампа:
-                    -- arg1: Направление выстрела, arg2: Конечная точка
-                    local arg1 = CFrame.new(origin, targetPos)
-                    local arg2 = CFrame.new(targetPos)
-                    
-                    -- Отправляем измененные аргументы на сервер
-                    shootRemote:FireServer(arg1, arg2)
-                    print("🎯 Беспалевный выстрел в: " .. target.Parent.Name)
-                end
-            end
-        end
-    end
-end)
-
--- Подключаем к нашей вкладке Combat
-CombatTab:CreateToggle("Silent Aim (Шериф)", function(state)
-    gunSilentAim = state
-end)
-
--- ==========================================
--- БЛОК: SILENT AIM ДЛЯ БРОСКА НОЖА (МАРДЕР)
--- Вставь в самый конец файла
--- ==========================================
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-
-local knifeSilentAim = false
-
--- Поиск ближайшей цели к курсору
-local function getClosestForKnife()
-    local closestTarget = nil
-    local shortestDistance = math.huge
-    local mousePos = UserInputService:GetMouseLocation()
-    local Camera = workspace.CurrentCamera
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            if humanoid and humanoid.Health > 0 then
-                local rootPart = player.Character.HumanoidRootPart
-                local screenPoint, onScreen = Camera:WorldToScreenPoint(rootPart.Position)
-                
-                if onScreen then
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        closestTarget = rootPart
-                    end
-                end
-            end
-        end
-    end
-    return closestTarget
-end
-
--- Перехват атаки ножом
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if not knifeSilentAim then return end
-
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local character = LocalPlayer.Character
-        local knife = character and character:FindFirstChild("Knife")
-        
-        if knife then
-            -- Путь из твоего дампа: Knife -> Events -> KnifeThrown
-            local events = knife:FindFirstChild("Events")
-            local throwRemote = events and events:FindFirstChild("KnifeThrown")
-            
-            if throwRemote then
-                local target = getClosestForKnife()
-                if target then
-                    local origin = character.HumanoidRootPart.Position
-                    local targetPos = target.Position
-                    
-                    -- Аргументы из твоего дампа для идеального броска
-                    local arg1 = CFrame.new(origin, targetPos)
-                    local arg2 = CFrame.new(targetPos)
-                    
-                    -- Кидаем нож на серверном уровне ровно в цель
-                    throwRemote:FireServer(arg1, arg2)
-                    print("🔪 Скрытый бросок ножа в: " .. target.Parent.Name)
-                end
-            end
-        end
-    end
-end)
-
--- Подключаем к нашей вкладке Aim
-AimTab:CreateToggle("Silent Aim (Мардер)", function(state)
-    knifeSilentAim = state
-end)
-
-print("🚀 Обновленный Hub загружен!")
+return Library
