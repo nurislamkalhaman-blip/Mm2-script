@@ -20,6 +20,18 @@ Btn.TextColor3 = Color3.new(0,0,0)
 Btn.OutlineColor = Color3.new(0,0,0)
 Btn.Parent = ScreenGui
 
+local Btn2 = Instance.new("TextButton")
+Btn.Size = UDim2.new(0,50,0,50)
+Btn.Position = UDim2.new(1, -110, 1, -220)
+Btn.AnchorPoint = Vector2.new(0.5, 0.5)
+Btn.Text = "SetPos"
+Btn.TextSize = 18
+Btn.Font = Enum.Font.GothamBold
+Btn.BackgroundColor3 = Color3.new(224,224,224)
+Btn.TextColor3 = Color3.new(0,0,0)
+Btn.OutlineColor = Color3.new(0,0,0)
+Btn.Parent = ScreenGui
+
 local PlayerPos = nil
 
 local function PlayerPosGet()
@@ -37,6 +49,11 @@ local function Teleport()
     end
   end
 end
+
+Btn.MouseButton1Click:Connect(Teleport())
+
+Btn2.MouseButton1Click:Connect(PlayerPosGet())
+
 
 
   
