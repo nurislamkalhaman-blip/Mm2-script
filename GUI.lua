@@ -4,3 +4,12 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Name = "UiName"
+ScreenGui.Parent = PlayerGui
+
+local Frame = Instance.new("Frame")
+Frame.Name = "Frame1"
+Frame.BackgroundColor3 = Color3.FromRGB(0,0,0)
+Frame.Parent = ScreenGui
+Frame.BorderSizePixel = 1
+Frame.BorderColor3 = Color3.FromRGB
